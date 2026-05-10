@@ -1,0 +1,49 @@
+# ============================================================
+# Contracts for JGraphTWrapper
+# Verifying REAL JGraphT SimpleGraph behavior
+# ============================================================
+
+# ---- addVertex() via real JGraphT ----
+
+# Adding new vertex increases count
+{!contains(p1)} add(p1) {size() == oldSize + 1}
+
+# After adding, vertex exists
+{!contains(p1)} add(p1) {contains(p1)}
+
+# Adding to empty gives size 1
+{isEmpty()} add(p1) {size() == 1}
+
+# Adding makes graph non-empty
+{isEmpty()} add(p1) {!isEmpty()}
+
+# Adding p1 doesn't remove existing b1
+{contains(b1) && !contains(p1) && p1 != b1} add(p1) {contains(b1)}
+
+# ---- removeVertex() via real JGraphT ----
+
+# Removing existing vertex decreases count
+{size() > 0 && contains(p1)} remove(p1) {size() == oldSize - 1}
+
+# Removed vertex is gone
+{contains(p1)} remove(p1) {!contains(p1)}
+
+# Removing last vertex empties graph
+{size() == 1 && contains(p1)} remove(p1) {isEmpty()}
+
+# Removing p1 doesn't affect unrelated b1
+{contains(b1) && contains(p1) && p1 != b1} remove(p1) {contains(b1)}
+
+# ---- addEdge() via real JGraphT ----
+
+# Edge between new vertices creates both
+{isEmpty() && p1 != b1} put(p1, b1) {size() == 2}
+
+# Edge preserves existing vertex
+{contains(p1) && !contains(b1) && p1 != b1} put(p1, b1) {contains(p1)}
+
+# ---- BUGGY CONTRACTS (should trigger VIOLATION) ----
+
+{!contains(p1) && size() == 2} add(p1) {size() == 2}
+{size() > 0 && contains(p1)} remove(p1) {size() == oldSize + 1}
+{isEmpty()} add(p1) {size() == 0}

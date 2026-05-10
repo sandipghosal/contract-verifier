@@ -1,0 +1,23 @@
+# Contracts for BoundedList
+# Format: {Precondition} method(args) {Postcondition}
+
+# Pop contracts
+{size() > 0} pop() {size() == oldSize - 1}
+{size() == 2} pop() {size() == 1}
+
+# Push contracts  
+{!isfull()} push(p1) {size() == oldSize + 1}
+{!isfull()} push(p1) {contains(p1)}
+{isempty()} push(p1) {size() == 1}
+{!contains(b1) && p1 != b1} push(p1) {!contains(b1)}
+
+# Insert contracts
+{!isfull()} insert(p1, p2) {size() == oldSize + 1}
+
+# Contracts that will VIOLATE
+
+# Bug 1: Push increases size, but postcondition says size stays same
+{!isfull() && size() == 2} push(p1) {size() == 2}
+
+# Bug 2: Insert adds an element, but postcondition says size is 0
+{isempty()} insert(p1, p2) {size() == 0}

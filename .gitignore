@@ -1,0 +1,33 @@
+# Compiled Java classes
+*.class
+
+# Generated files (re-created by the engine at runtime)
+# GeneratedDispatcher.java is kept as a reference — it's regenerated per class
+
+# JPF configs generated at runtime
+verify_boundedqueue.jpf
+verify_boundedlist.jpf
+verify_jgrapht_experiment.jpf
+verify_scalified_experiment.jpf
+verify.jpf
+generic_verify_*.jpf
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+out/
+target/
+
+# Logs
+*.log

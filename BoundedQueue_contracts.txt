@@ -1,0 +1,15 @@
+# Valid Contracts
+{!isFull()} enqueue(p1) {size() == oldSize + 1}
+{!isFull()} enqueue(p1) {contains(p1)}
+{isEmpty()} enqueue(p1) {size() == 1}
+{!isEmpty()} dequeue() {size() == oldSize - 1}
+{size() == 1} dequeue() {isEmpty()}
+{size() > 0} peek() {size() == oldSize}
+{!contains(b1) && p1 != b1} enqueue(p1) {!contains(b1)}
+{!isFull() && size()==oldSize} enqueue(p1) {size()==oldSize+1}
+
+# Buggy Contracts
+{!isFull() && size() == 2} enqueue(p1) {size() == 2}
+{isEmpty()} enqueue(p1) {size() == 0}
+{size()==oldSize} dequeue() {size()==oldSize}
+

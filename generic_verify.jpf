@@ -1,0 +1,23 @@
+# ============================================================
+# JPF Configuration for Generic Verification Engine
+# ============================================================
+
+target=GenericContractsTest
+
+# Arguments: ClassName ContractsFile
+target.args=BoundedQueue,BoundedQueue_contracts.txt
+
+classpath=.
+
+# Symbolic execution settings
+vm.insn_factory.class=gov.nasa.jpf.symbc.SymbolicInstructionFactory
+listener=gov.nasa.jpf.symbc.SymbolicListener
+
+# Symbolic integer bounds
+symbolic.min_int=-10
+symbolic.max_int=10
+
+# Search settings
+symbolic.debug=true
+symbolic.lazy=true
+search.multiple_errors=true

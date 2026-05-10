@@ -1,0 +1,23 @@
+# ============================================================
+# Contracts for JGraphTDirectedWrapper
+# Verifying REAL JGraphT SimpleDirectedGraph behavior
+# ============================================================
+
+# ---- addVertex() ----
+{!contains(p1)} add(p1) {size() == oldSize + 1}
+{!contains(p1)} add(p1) {contains(p1)}
+{isEmpty()} add(p1) {size() == 1}
+{isEmpty()} add(p1) {!isEmpty()}
+{contains(b1) && !contains(p1) && p1 != b1} add(p1) {contains(b1)}
+
+# ---- removeVertex() ----
+{size() > 0 && contains(p1)} remove(p1) {size() == oldSize - 1}
+{contains(p1)} remove(p1) {!contains(p1)}
+{size() == 1 && contains(p1)} remove(p1) {isEmpty()}
+
+# ---- addEdge() ----
+{isEmpty() && p1 != b1} put(p1, b1) {size() == 2}
+
+# ---- BUGGY ----
+{!contains(p1) && size() == 2} add(p1) {size() == 2}
+{isEmpty()} add(p1) {size() == 0}
