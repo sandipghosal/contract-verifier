@@ -651,8 +651,8 @@ External dependencies installed by the setup script (not in this repo):
 
 ## Authors
 
-- **Aryan Kumar** — BIT Mesra
-- **Alex Toppo** — BIT Mesra
+- **Aryan Kumar** 
+- **Alex Toppo** 
 
 Under the guidance of **Prof. Sandip Ghosal**, Department of Computer Science & Engineering, Birla Institute of Technology, Mesra.
 
