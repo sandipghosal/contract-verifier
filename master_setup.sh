@@ -30,6 +30,9 @@ HOME_DIR=$HOME
 # Auto-detect: PROJECT_DIR = wherever this script lives (i.e. the cloned repo)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${SCRIPT_DIR}"
+SRC_DIR="${PROJECT_DIR}/src"
+EXP_DIR="${PROJECT_DIR}/exp"
+BUILD_DIR="${PROJECT_DIR}/build"
 
 JPF_CORE_DIR="${HOME_DIR}/jpf-core"
 JPF_SYMBC_DIR="${HOME_DIR}/jpf-symbc"
@@ -516,31 +519,37 @@ download_libraries() {
 # ═══════════════════════════════════════════════════════════════════
 
 setup_project() {
-    print_header "PHASE 5: Setting Up Project Directory"
+    print_header "PHASE 5: Setting Up Project"
 
-    if [ -d "${PROJECT_DIR}" ] && [ -f "${PROJECT_DIR}/GenericContractsTest.java" ]; then
-        print_step "Project files found in ${PROJECT_DIR}"
+    if [ -d "${SRC_DIR}" ] && [ -f "${SRC_DIR}/GenericContractsTest.java" ]; then
+        print_step "Source files found in ${SRC_DIR}"
     else
-        print_error "Source files not found in ${PROJECT_DIR}"
+        print_error "Source files not found in ${SRC_DIR}"
         print_info "Make sure you're running this script from inside the cloned repo:"
-        print_info "  git clone https://github.com/<your-username>/contract-verifier.git"
+        print_info "  git clone https://github.com/sandipghosal/contract-verifier.git"
         print_info "  cd contract-verifier"
         print_info "  ./master_setup.sh --setup"
         return 1
     fi
 
-    # Make scripts executable
-    chmod +x "${PROJECT_DIR}"/*.sh 2>/dev/null || true
-    print_step "Scripts made executable"
+    if [ -d "${EXP_DIR}" ] && [ -f "${EXP_DIR}/JGraphTWrapper.java" ]; then
+        print_step "Experiment files found in ${EXP_DIR}"
+    else
+        print_warn "Experiment files not found in ${EXP_DIR} (experiments won't run)"
+    fi
 
-    # Compile core engine files
+    # Create build directory and prepare it
+    prepare_build
+    print_step "Build directory ready at ${BUILD_DIR}"
+
+    # Compile core engine in build/
     print_info "Compiling core verification engine..."
-    cd "${PROJECT_DIR}"
+    cd "${BUILD_DIR}"
     javac -cp "${JPF_CP}" GenericContractsTest.java DispatcherGenerator.java BoundedQueue.java BoundedList.java 2>&1
     if [ $? -eq 0 ]; then
         print_step "Core engine compiled"
     else
-        print_error "Compilation failed — check Java 8 is active"
+        print_error "Compilation failed. Check Java 8 is active."
         return 1
     fi
 
@@ -552,6 +561,28 @@ setup_project() {
 
     echo ""
     print_step "Project ready"
+}
+
+# ═══════════════════════════════════════════════════════════════════
+# PREPARE BUILD DIRECTORY
+# Copies engine files from src/ to build/ for flat-directory execution
+# ═══════════════════════════════════════════════════════════════════
+
+prepare_build() {
+    mkdir -p "${BUILD_DIR}"
+    # Copy all engine source files from src/
+    cp "${SRC_DIR}"/*.java "${BUILD_DIR}/" 2>/dev/null || true
+    cp "${SRC_DIR}"/*.txt "${BUILD_DIR}/" 2>/dev/null || true
+    cp "${SRC_DIR}"/*.jpf "${BUILD_DIR}/" 2>/dev/null || true
+}
+
+prepare_build_with_exp() {
+    # Prepare build/ with engine files + specific experiment files
+    prepare_build
+    # Copy experiment files from exp/
+    cp "${EXP_DIR}"/*.java "${BUILD_DIR}/" 2>/dev/null || true
+    cp "${EXP_DIR}"/*.txt "${BUILD_DIR}/" 2>/dev/null || true
+    cp "${EXP_DIR}"/*.jpf "${BUILD_DIR}/" 2>/dev/null || true
 }
 
 # ═══════════════════════════════════════════════════════════════════
@@ -639,11 +670,17 @@ health_check() {
     fi
 
     # Project files
-    if [ -f "${PROJECT_DIR}/GenericContractsTest.java" ]; then
-        print_step "Project files: present in ${PROJECT_DIR}"
+    if [ -f "${SRC_DIR}/GenericContractsTest.java" ]; then
+        print_step "Source files: present in ${SRC_DIR}"
     else
-        print_error "Project files NOT found in ${PROJECT_DIR}"
+        print_error "Source files NOT found in ${SRC_DIR}"
         HEALTHY=0
+    fi
+
+    if [ -f "${EXP_DIR}/JGraphTWrapper.java" ]; then
+        print_step "Experiment files: present in ${EXP_DIR}"
+    else
+        print_warn "Experiment files missing (library experiments won't run)"
     fi
 
     echo ""
@@ -686,7 +723,13 @@ verify_ds() {
         fi
     fi
 
-    cd "${PROJECT_DIR}"
+    # Prepare build directory with engine + experiment files
+    if [[ "$CLASS" == JGraphT* ]] || [[ "$CLASS" == Scalified* ]]; then
+        prepare_build_with_exp
+    else
+        prepare_build
+    fi
+    cd "${BUILD_DIR}"
 
     separator
     echo -e "  ${BOLD}Verifying: ${CYAN}${CLASS}${NC}"
@@ -744,7 +787,7 @@ run_all_core() {
     # BoundedQueue
     echo ""
     echo -e "${YELLOW}═══ 1/2: BoundedQueue ═══${NC}"
-    cat > "${PROJECT_DIR}/verify_boundedqueue.jpf" << EOF
+    cat > "${BUILD_DIR}/verify_boundedqueue.jpf" << EOF
 target=GenericContractsTest
 target.args=BoundedQueue,BoundedQueue_contracts.txt
 classpath=.
@@ -761,7 +804,7 @@ EOF
     # BoundedList
     echo ""
     echo -e "${YELLOW}═══ 2/2: BoundedList ═══${NC}"
-    cat > "${PROJECT_DIR}/verify_boundedlist.jpf" << EOF
+    cat > "${BUILD_DIR}/verify_boundedlist.jpf" << EOF
 target=GenericContractsTest
 target.args=BoundedList,BoundedList_contracts.txt
 classpath=.
@@ -785,7 +828,8 @@ EOF
 run_jgrapht_experiment() {
     print_header "EXPERIMENT: JGraphT Library Verification"
 
-    cd "${PROJECT_DIR}"
+    prepare_build_with_exp
+    cd "${BUILD_DIR}"
 
     echo "  This experiment attempts to symbolically verify REAL"
     echo "  JGraphT library code through JPF/SPF."
@@ -798,7 +842,7 @@ run_jgrapht_experiment() {
     echo ""
 
     # Create JPF config
-    cat > "${PROJECT_DIR}/verify_jgrapht_experiment.jpf" << EOF
+    cat > "${BUILD_DIR}/verify_jgrapht_experiment.jpf" << EOF
 target=GenericContractsTest
 target.args=JGraphTWrapper,JGraphTWrapper_contracts.txt
 classpath=.:${LIBS_DIR}/${JGRAPHT_JAR}
@@ -838,7 +882,8 @@ EOF
 run_scalified_experiment() {
     print_header "EXPERIMENT: Scalified Tree Library Verification"
 
-    cd "${PROJECT_DIR}"
+    prepare_build_with_exp
+    cd "${BUILD_DIR}"
 
     echo "  This experiment runs TWO verification passes:"
     echo "    Run 1: BUGGY wrapper  → JPF detects remove() bug"
@@ -846,7 +891,7 @@ run_scalified_experiment() {
     echo ""
 
     # Create contracts file
-    cat > "${PROJECT_DIR}/ScalifiedWrapper_contracts.txt" << 'CONTRACTS'
+    cat > "${BUILD_DIR}/ScalifiedWrapper_contracts.txt" << 'CONTRACTS'
 # Contracts for ScalifiedWrapper (REAL Scalified library)
 
 # add() contracts
@@ -865,7 +910,7 @@ run_scalified_experiment() {
 CONTRACTS
 
     # Create JPF config
-    cat > "${PROJECT_DIR}/verify_scalified_experiment.jpf" << EOF
+    cat > "${BUILD_DIR}/verify_scalified_experiment.jpf" << EOF
 target=GenericContractsTest
 target.args=ScalifiedWrapper,ScalifiedWrapper_contracts.txt
 classpath=.:${LIBS_DIR}/${SCALIFIED_JAR}
@@ -886,7 +931,7 @@ EOF
     echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
-    cp "${PROJECT_DIR}/ScalifiedWrapper_BUGGY.java" "${PROJECT_DIR}/ScalifiedWrapper.java"
+    cp "${BUILD_DIR}/ScalifiedWrapper_BUGGY.java" "${BUILD_DIR}/ScalifiedWrapper.java"
     verify_ds "ScalifiedWrapper" "verify_scalified_experiment.jpf"
 
     echo ""
@@ -901,7 +946,7 @@ EOF
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
     echo ""
 
-    cp "${PROJECT_DIR}/ScalifiedWrapper_FIXED.java" "${PROJECT_DIR}/ScalifiedWrapper.java"
+    cp "${BUILD_DIR}/ScalifiedWrapper_FIXED.java" "${BUILD_DIR}/ScalifiedWrapper.java"
     verify_ds "ScalifiedWrapper" "verify_scalified_experiment.jpf"
 
     echo ""
@@ -927,13 +972,15 @@ EOF
 launch_ui() {
     print_header "SPFVerifierUI — Desktop Application"
 
-    cd "${PROJECT_DIR}"
-
-    if [ ! -f "${PROJECT_DIR}/SPFVerifierUI.java" ]; then
-        print_error "SPFVerifierUI.java not found in ${PROJECT_DIR}"
-        print_info "Place SPFVerifierUI.java in ${PROJECT_DIR} and retry."
+    if [ ! -f "${SRC_DIR}/SPFVerifierUI.java" ]; then
+        print_error "SPFVerifierUI.java not found in ${SRC_DIR}"
+        print_info "Place SPFVerifierUI.java in ${SRC_DIR} and retry."
         return 1
     fi
+
+    # Prepare build directory with all source files
+    prepare_build
+    cd "${BUILD_DIR}"
 
     # ── Export env vars that SPFVerifierUI.java reads via loadEnvConfig() ──
     # The UI reads these SPECIFIC names (not JPF_CORE/JPF_SYMBC):
@@ -1035,8 +1082,9 @@ interactive_menu() {
             1) full_setup ;;
             2) health_check ;;
             3)
-                cd "${PROJECT_DIR}"
-                cat > "${PROJECT_DIR}/verify_boundedqueue.jpf" << EOF
+                prepare_build
+                cd "${BUILD_DIR}"
+                cat > "${BUILD_DIR}/verify_boundedqueue.jpf" << EOF
 target=GenericContractsTest
 target.args=BoundedQueue,BoundedQueue_contracts.txt
 classpath=.
@@ -1051,8 +1099,9 @@ EOF
                 verify_ds "BoundedQueue" "verify_boundedqueue.jpf"
                 ;;
             4)
-                cd "${PROJECT_DIR}"
-                cat > "${PROJECT_DIR}/verify_boundedlist.jpf" << EOF
+                prepare_build
+                cd "${BUILD_DIR}"
+                cat > "${BUILD_DIR}/verify_boundedlist.jpf" << EOF
 target=GenericContractsTest
 target.args=BoundedList,BoundedList_contracts.txt
 classpath=.
